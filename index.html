@@ -3,14 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Snake Game with Custom Graphics</title>
+    <title>Retro Snake Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        /* ... (previous CSS remains the same) ... */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: 'Press Start 2P', cursive;
+        }
+        #gameCanvas {
+            border: 1px solid #ffffff;
+        }
+        #startScreen {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+        #startScreen h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #00ff00;
+            animation: pulse 2s infinite;
+        }
+        #startScreen p {
+            margin: 10px 0;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        #startScreen p:nth-child(2) { animation-delay: 0.2s; }
+        #startScreen p:nth-child(3) { animation-delay: 0.4s; }
+        #startScreen p:nth-child(4) { animation-delay: 0.6s; }
+        #startScreen p:nth-child(5) { animation-delay: 0.8s; }
+        #startButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #00ff00;
+            color: black;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            font-family: 'Press Start 2P', cursive;
+            animation: bounceIn 0.5s ease-out 1s backwards;
+        }
+        #startButton:hover {
+            background-color: #00cc00;
+            transform: scale(1.05);
+        }
+        #startButton:active {
+            transform: scale(0.95);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0.1); opacity: 0; }
+            60% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
-    <!-- ... (previous HTML remains the same) ... -->
+    <div id="startScreen">
+        <h1>SNAKE GAME</h1>
+        <p>USE ARROW KEYS<br>TO MOVE SNAKE</p>
+        <p>EAT APPLES TO<br>GROW AND SCORE</p>
+        <p>LARGER APPLES<br>WORTH MORE</p>
+        <p>AVOID WALLS<br>AND YOURSELF</p>
+        <button id="startButton">START GAME</button>
+    </div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -27,19 +113,70 @@
         let score = 0;
         let gameInterval;
 
-        // Load custom images
-        const snakeHeadImg = new Image();
-        snakeHeadImg.src = 'snake-head.png'; // Replace with your actual image path
+        startButton.addEventListener('click', startGame);
 
-        const snakeBodyImg = new Image();
-        snakeBodyImg.src = 'snake-body.png'; // Replace with your actual image path
+        function startGame() {
+            startScreen.style.animation = 'fadeIn 0.5s ease-out reverse';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                resetGame();
+                gameInterval = setInterval(drawGame, 100);
+            }, 500);
+        }
 
-        const appleImg = new Image();
-        appleImg.src = 'apple.png'; // Replace with your actual image path
+        function drawGame() {
+            clearCanvas();
+            moveSnake();
+            checkCollision();
+            drawApples();
+            drawSnake();
+            drawScore();
+        }
 
-        // ... (rest of the JavaScript remains the same until drawSnake and drawApples functions) ...
+        function clearCanvas() {
+            ctx.fillStyle = 'rgb(32, 32, 32)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            let appleEaten = false;
+            apples = apples.filter(apple => {
+                if (head.x === apple.x && head.y === apple.y) {
+                    score += Math.floor(apple.size * 10);
+                    appleEaten = true;
+                    return false;
+                }
+                return true;
+            });
+
+            if (!appleEaten) {
+                snake.pop();
+            }
+
+            if (apples.length === 0) {
+                generateApples();
+            }
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+            }
+
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                }
+            }
+        }
 
         function drawSnake() {
+            ctx.fillStyle = 'rgb(0, 255, 0)';
             snake.forEach((segment, index) => {
                 if (index === 0) {
                     // Draw snake head
@@ -52,31 +189,127 @@
                     else if (dy === -1) ctx.rotate(-Math.PI/2);
                     else if (dy === 1) ctx.rotate(Math.PI/2);
 
-                    ctx.drawImage(snakeHeadImg, -gridSize/2, -gridSize/2, gridSize, gridSize);
+                    ctx.beginPath();
+                    ctx.moveTo(-8, -8);
+                    ctx.lineTo(8, -8);
+                    ctx.lineTo(8, 0);
+                    ctx.lineTo(0, 8);
+                    ctx.lineTo(-8, 0);
+                    ctx.closePath();
+                    ctx.fillStyle = 'lime';
+                    ctx.fill();
+
+                    // Eyes
+                    ctx.beginPath();
+                    ctx.arc(4, -4, 2, 0, Math.PI * 2);
+                    ctx.arc(-4, -4, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'black';
+                    ctx.fill();
+
                     ctx.restore();
                 } else {
                     // Draw snake body
-                    ctx.drawImage(snakeBodyImg, segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+                    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
                 }
             });
         }
 
         function drawApples() {
             apples.forEach(apple => {
-                ctx.drawImage(appleImg, apple.x * gridSize, apple.y * gridSize, gridSize * apple.size, gridSize * apple.size);
+                ctx.save();
+                ctx.translate(apple.x * gridSize + gridSize / 2, apple.y * gridSize + gridSize / 2);
+                ctx.scale(apple.size, apple.size);
+
+                // Apple body
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.bezierCurveTo(8, -8, 8, 8, 0, 8);
+                ctx.bezierCurveTo(-8, 8, -8, -8, 0, -8);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+
+                // Stem
+                ctx.beginPath();
+                ctx.moveTo(0, -8);
+                ctx.lineTo(0, -10);
+                ctx.strokeStyle = 'brown';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Leaf
+                ctx.beginPath();
+                ctx.moveTo(0, -10);
+                ctx.quadraticCurveTo(3, -12, 6, -10);
+                ctx.quadraticCurveTo(3, -8, 0, -10);
+                ctx.fillStyle = 'green';
+                ctx.fill();
+
+                ctx.restore();
             });
         }
 
-        // ... (rest of the JavaScript remains the same) ...
+        function generateApples() {
+            const appleCount = Math.floor(Math.random() * 3) + 1; // 1 to 3 apples
+            for (let i = 0; i < appleCount; i++) {
+                let newApple;
+                do {
+                    newApple = {
+                        x: Math.floor(Math.random() * tileCount),
+                        y: Math.floor(Math.random() * tileCount),
+                        size: Math.random() * 0.5 + 0.5 // Size between 0.5 and 1
+                    };
+                } while (apples.some(apple => apple.x === newApple.x && apple.y === newApple.y) ||
+                         snake.some(segment => segment.x === newApple.x && segment.y === newApple.y));
+                apples.push(newApple);
+            }
+        }
 
-        // Wait for images to load before starting the game
-        Promise.all([
-            new Promise(resolve => snakeHeadImg.onload = resolve),
-            new Promise(resolve => snakeBodyImg.onload = resolve),
-            new Promise(resolve => appleImg.onload = resolve)
-        ]).then(() => {
-            // Initialize the game once all images are loaded
-            startButton.addEventListener('click', startGame);
+        function drawScore() {
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '16px "Press Start 2P"';
+            ctx.fillText(`SCORE:${score}`, 10, 30);
+        }
+
+        function resetGame() {
+            snake = [{x: 10, y: 10}];
+            apples = [];
+            generateApples();
+            dx = 0;
+            dy = 0;
+            score = 0;
+        }
+
+        function gameOver() {
+            clearInterval(gameInterval);
+            startScreen.style.display = 'flex';
+            startScreen.style.animation = 'fadeIn 0.5s ease-out';
+            startButton.textContent = 'PLAY AGAIN';
+            
+            // Reset animations
+            startScreen.querySelectorAll('p').forEach((p, index) => {
+                p.style.animation = 'none';
+                p.offsetHeight; // Trigger reflow
+                p.style.animation = `slideIn 0.5s ease-out ${index * 0.2}s forwards`;
+            });
+            
+            startButton.style.animation = 'bounceIn 0.5s ease-out 1s backwards';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                    if (dy === 0) { dx = 0; dy = -1; }
+                    break;
+                case 'ArrowDown':
+                    if (dy === 0) { dx = 0; dy = 1; }
+                    break;
+                case 'ArrowLeft':
+                    if (dx === 0) { dx = -1; dy = 0; }
+                    break;
+                case 'ArrowRight':
+                    if (dx === 0) { dx = 1; dy = 0; }
+                    break;
+            }
         });
     </script>
 </body>
